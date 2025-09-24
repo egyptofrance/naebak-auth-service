@@ -1,37 +1,28 @@
 """
-Django settings for Naibak Microservice Template
-Secure, scalable, and AI-governance ready configuration
+Django settings for Naebak Auth Service.
 """
-
 import os
-import environ
 from pathlib import Path
+import environ
 
-# Build paths inside the project
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Environment variables
 env = environ.Env(
-    DEBUG=(bool, False),
-    ALLOWED_HOSTS=(list, []),
-    DATABASE_URL=(str, ''),
-    REDIS_URL=(str, 'redis://localhost:6379/0'),
-    SECRET_KEY=(str, ''),
-    AI_GOVERNANCE_ENABLED=(bool, True),
-    MAX_AI_REQUESTS_PER_MINUTE=(int, 10),
-    AI_RESPONSE_MAX_TOKENS=(int, 1000),
+    DEBUG=(bool, False)
 )
 
-# Read .env file
-environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
+# Take environment variables from .env file
+environ.Env.read_env(BASE_DIR / '.env')
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = env('SECRET_KEY')
+SECRET_KEY = env('SECRET_KEY', default='django-insecure-change-me-in-production')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env('DEBUG')
 
-ALLOWED_HOSTS = env('ALLOWED_HOSTS')
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
 
 # Application definition
 DJANGO_APPS = [
@@ -45,31 +36,34 @@ DJANGO_APPS = [
 
 THIRD_PARTY_APPS = [
     'rest_framework',
+    'rest_framework_simplejwt',
     'corsheaders',
     'drf_spectacular',
+    'health_check',
+    'health_check.db',
+    'health_check.cache',
+    'health_check.storage',
 ]
 
 LOCAL_APPS = [
-    'app.core',
-    'app.ai_governance',
-    'app.monitoring',
-    'users',
-    'authentication',
+    'apps.authentication',
+    'apps.users',
+    'apps.common',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
     'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'app.ai_governance.middleware.AIGovernanceMiddleware',
-    'app.monitoring.middleware.MetricsMiddleware',
+    'apps.common.middleware.RequestLoggingMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -77,7 +71,7 @@ ROOT_URLCONF = 'config.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -92,22 +86,26 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-# Custom User Model
-AUTH_USER_MODEL = 'users.User'
-
 # Database
 DATABASES = {
-    'default': env.db() if env('DATABASE_URL') else {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': env('DB_NAME', default='naebak_auth'),
+        'USER': env('DB_USER', default='naebak_user'),
+        'PASSWORD': env('DB_PASSWORD', default='naebak_pass'),
+        'HOST': env('DB_HOST', default='localhost'),
+        'PORT': env('DB_PORT', default='5432'),
+        'OPTIONS': {
+            'connect_timeout': 10,
+        },
     }
 }
 
-# Redis Cache
+# Cache (Redis)
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': env('REDIS_URL'),
+        'LOCATION': env('REDIS_URL', default='redis://localhost:6379/1'),
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
         }
@@ -121,6 +119,9 @@ AUTH_PASSWORD_VALIDATORS = [
     },
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'OPTIONS': {
+            'min_length': 8,
+        }
     },
     {
         'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
@@ -136,21 +137,25 @@ TIME_ZONE = 'Africa/Cairo'
 USE_I18N = True
 USE_TZ = True
 
-# Static files
+# Static files (CSS, JavaScript, Images)
 STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [BASE_DIR / 'static']
+
+# Media files
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# REST Framework configuration
+# REST Framework
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
-        'rest_framework.authentication.SessionAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
-        'authentication.permissions.FlexiblePermission',
+        'rest_framework.permissions.IsAuthenticated',
     ],
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
@@ -158,72 +163,45 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
-    'DEFAULT_THROTTLE_CLASSES': [
-        'rest_framework.throttling.AnonRateThrottle',
-        'rest_framework.throttling.UserRateThrottle'
-    ],
-    'DEFAULT_THROTTLE_RATES': {
-        'anon': '100/hour',
-        'user': '1000/hour'
-    }
 }
 
 # JWT Settings
 from datetime import timedelta
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'UPDATE_LAST_LOGIN': True,
     'ALGORITHM': 'HS256',
-    'SIGNING_KEY': env('SECRET_KEY'),
+    'SIGNING_KEY': SECRET_KEY,
     'VERIFYING_KEY': None,
     'AUTH_HEADER_TYPES': ('Bearer',),
     'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
     'USER_ID_FIELD': 'id',
     'USER_ID_CLAIM': 'user_id',
-    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
-    'TOKEN_TYPE_CLAIM': 'token_type',
 }
 
-# CORS settings
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
+# CORS Settings
+CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+])
 
 CORS_ALLOW_CREDENTIALS = True
 
-# Security settings
-SECURE_BROWSER_XSS_FILTER = True
-SECURE_CONTENT_TYPE_NOSNIFF = True
-X_FRAME_OPTIONS = 'DENY'
-SECURE_HSTS_SECONDS = 31536000 if not DEBUG else 0
-SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-SECURE_HSTS_PRELOAD = True
-
-# AI Governance Settings
-AI_GOVERNANCE = {
-    'ENABLED': env('AI_GOVERNANCE_ENABLED'),
-    'MAX_REQUESTS_PER_MINUTE': env('MAX_AI_REQUESTS_PER_MINUTE'),
-    'MAX_RESPONSE_TOKENS': env('AI_RESPONSE_MAX_TOKENS'),
-    'ALLOWED_MODELS': [
-        'gpt-3.5-turbo',
-        'gpt-4',
-        'claude-3-sonnet',
-    ],
-    'CONTENT_FILTERS': [
-        'app.ai_governance.filters.ProfanityFilter',
-        'app.ai_governance.filters.BiasDetectionFilter',
-        'app.ai_governance.filters.FactCheckFilter',
-    ],
-    'AUDIT_ENABLED': True,
-    'AUDIT_RETENTION_DAYS': 90,
+# API Documentation
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Naebak Auth Service API',
+    'DESCRIPTION': 'خدمة المصادقة وإدارة المستخدمين لمنصة نائبك',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'COMPONENT_SPLIT_REQUEST': True,
+    'SCHEMA_PATH_PREFIX': '/api/',
 }
 
-# Logging configuration
+# Logging
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -241,7 +219,7 @@ LOGGING = {
         'file': {
             'level': 'INFO',
             'class': 'logging.FileHandler',
-            'filename': 'logs/django.log',
+            'filename': 'logs/auth_service.log',
             'formatter': 'verbose',
         },
         'console': {
@@ -250,27 +228,61 @@ LOGGING = {
             'formatter': 'simple',
         },
     },
-    'root': {
-        'handlers': ['console', 'file'],
-        'level': 'INFO',
-    },
     'loggers': {
         'django': {
-            'handlers': ['console', 'file'],
+            'handlers': ['file', 'console'],
             'level': 'INFO',
-            'propagate': False,
+            'propagate': True,
         },
-        'ai_governance': {
-            'handlers': ['console', 'file'],
+        'naebak.auth': {
+            'handlers': ['file', 'console'],
             'level': 'DEBUG',
             'propagate': False,
         },
     },
 }
 
-# Monitoring settings
-MONITORING = {
-    'PROMETHEUS_ENABLED': True,
-    'METRICS_PATH': '/metrics',
-    'HEALTH_CHECK_PATH': '/health',
-}
+# Create logs directory
+os.makedirs('logs', exist_ok=True)
+
+# Security Settings
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
+
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+
+# Egyptian Governorates
+EGYPTIAN_GOVERNORATES = [
+    ('cairo', 'القاهرة'),
+    ('giza', 'الجيزة'),
+    ('alexandria', 'الإسكندرية'),
+    ('dakahlia', 'الدقهلية'),
+    ('red_sea', 'البحر الأحمر'),
+    ('beheira', 'البحيرة'),
+    ('fayoum', 'الفيوم'),
+    ('gharbiya', 'الغربية'),
+    ('ismailia', 'الإسماعيلية'),
+    ('menofia', 'المنوفية'),
+    ('minya', 'المنيا'),
+    ('qaliubiya', 'القليوبية'),
+    ('new_valley', 'الوادي الجديد'),
+    ('suez', 'السويس'),
+    ('aswan', 'أسوان'),
+    ('assiut', 'أسيوط'),
+    ('beni_suef', 'بني سويف'),
+    ('port_said', 'بورسعيد'),
+    ('damietta', 'دمياط'),
+    ('sharkia', 'الشرقية'),
+    ('south_sinai', 'جنوب سيناء'),
+    ('kafr_el_sheikh', 'كفر الشيخ'),
+    ('matrouh', 'مطروح'),
+    ('luxor', 'الأقصر'),
+    ('qena', 'قنا'),
+    ('north_sinai', 'شمال سيناء'),
+    ('sohag', 'سوهاج'),
+]
