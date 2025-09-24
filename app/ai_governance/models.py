@@ -5,7 +5,8 @@ These models track and control AI usage within the microservice
 """
 
 from django.db import models
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+from django.conf import settings
 from django.core.validators import MinValueValidator, MaxValueValidator
 import uuid
 
@@ -42,7 +43,7 @@ class AIRequest(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)
     session_id = models.CharField(max_length=100, null=True, blank=True)
     ai_model = models.ForeignKey(AIModel, on_delete=models.CASCADE)
     
@@ -116,7 +117,7 @@ class AIUsageQuota(models.Model):
     max_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0.0)
     
     # Optional specific targeting
-    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)
     ai_model = models.ForeignKey(AIModel, on_delete=models.CASCADE, null=True, blank=True)
     
     is_active = models.BooleanField(default=True)
@@ -184,7 +185,7 @@ class AIAuditLog(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     ai_request = models.ForeignKey(AIRequest, on_delete=models.CASCADE, null=True, blank=True)
-    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)
     
     action = models.CharField(max_length=30, choices=ACTION_CHOICES)
     description = models.TextField()
