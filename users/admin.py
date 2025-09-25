@@ -5,7 +5,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.translation import gettext_lazy as _
-from .models import User, UserSession, AnonymousSession, LoginAttempt
+from .models import User, Governorate, Party, CitizenProfile, CandidateProfile, CurrentMemberProfile
 
 
 @admin.register(User)
@@ -14,38 +14,27 @@ class UserAdmin(BaseUserAdmin):
     
     list_display = (
         'email', 'first_name', 'last_name', 'user_type', 
-        'verification_status', 'is_active', 'created_at'
+        'verification_status', 'is_active', 'date_joined'
     )
     list_filter = (
-        'user_type', 'verification_status', 'is_active', 
-        'is_email_verified', 'is_phone_verified', 'created_at'
+        'user_type', 'verification_status', 'is_active', 'date_joined'
     )
     search_fields = ('email', 'first_name', 'last_name', 'phone_number')
-    ordering = ('-created_at',)
+    ordering = ('-date_joined',)
     
     fieldsets = (
         (None, {'fields': ('email', 'password')}),
         (_('المعلومات الشخصية'), {
-            'fields': ('first_name', 'last_name', 'phone_number', 'profile_picture', 'bio', 'birth_date')
+            'fields': ('first_name', 'last_name', 'phone_number')
         }),
         (_('معلومات الحساب'), {
-            'fields': ('user_type', 'verification_status', 'national_id')
-        }),
-        (_('الموقع'), {
-            'fields': ('governorate', 'city')
-        }),
-        (_('التحقق'), {
-            'fields': ('is_email_verified', 'is_phone_verified')
+            'fields': ('user_type', 'verification_status')
         }),
         (_('الصلاحيات'), {
             'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions'),
         }),
         (_('تواريخ مهمة'), {
-            'fields': ('last_login', 'created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
-        (_('معلومات إضافية'), {
-            'fields': ('google_id', 'last_login_ip', 'receive_notifications'),
+            'fields': ('last_login', 'date_joined', 'last_active'),
             'classes': ('collapse',)
         }),
     )
@@ -57,56 +46,55 @@ class UserAdmin(BaseUserAdmin):
         }),
     )
     
-    readonly_fields = ('created_at', 'updated_at', 'last_login')
+    readonly_fields = ('date_joined', 'last_active', 'last_login')
     
     def get_queryset(self, request):
         return super().get_queryset(request).select_related()
 
 
-@admin.register(UserSession)
-class UserSessionAdmin(admin.ModelAdmin):
-    """إعدادات لوحة إدارة جلسات المستخدمين"""
+@admin.register(Governorate)
+class GovernorateAdmin(admin.ModelAdmin):
+    """إدارة المحافظات"""
     
-    list_display = ('user', 'ip_address', 'is_active', 'created_at', 'last_activity')
-    list_filter = ('is_active', 'created_at', 'last_activity')
-    search_fields = ('user__email', 'user__first_name', 'user__last_name', 'ip_address')
-    ordering = ('-last_activity',)
-    readonly_fields = ('session_key', 'created_at', 'last_activity')
-    
-    def get_queryset(self, request):
-        return super().get_queryset(request).select_related('user')
+    list_display = ['name', 'name_en', 'code']
+    search_fields = ['name', 'name_en', 'code']
+    ordering = ['name']
 
 
-@admin.register(AnonymousSession)
-class AnonymousSessionAdmin(admin.ModelAdmin):
-    """إعدادات لوحة إدارة الجلسات المجهولة"""
+@admin.register(Party)
+class PartyAdmin(admin.ModelAdmin):
+    """إدارة الأحزاب"""
     
-    list_display = ('session_key', 'ip_address', 'created_at', 'last_activity', 'pages_count')
-    list_filter = ('created_at', 'last_activity')
-    search_fields = ('ip_address', 'session_key')
-    ordering = ('-last_activity',)
-    readonly_fields = ('session_key', 'created_at', 'last_activity')
-    
-    def pages_count(self, obj):
-        """عدد الصفحات المزارة"""
-        return len(obj.pages_visited)
-    pages_count.short_description = _('عدد الصفحات المزارة')
+    list_display = ['name', 'name_en', 'abbreviation']
+    search_fields = ['name', 'name_en', 'abbreviation']
+    ordering = ['name']
 
 
-@admin.register(LoginAttempt)
-class LoginAttemptAdmin(admin.ModelAdmin):
-    """إعدادات لوحة إدارة محاولات تسجيل الدخول"""
+@admin.register(CitizenProfile)
+class CitizenProfileAdmin(admin.ModelAdmin):
+    """إدارة ملفات المواطنين"""
     
-    list_display = ('email', 'ip_address', 'success', 'failure_reason', 'created_at')
-    list_filter = ('success', 'created_at')
-    search_fields = ('email', 'ip_address')
-    ordering = ('-created_at',)
-    readonly_fields = ('created_at',)
+    list_display = ['user', 'governorate', 'city', 'is_verified', 'created_at']
+    list_filter = ['governorate', 'is_verified', 'gender', 'education_level']
+    search_fields = ['user__email', 'user__first_name', 'user__last_name', 'national_id']
+    ordering = ['-created_at']
+
+
+@admin.register(CandidateProfile)
+class CandidateProfileAdmin(admin.ModelAdmin):
+    """إدارة ملفات المرشحين"""
     
-    def has_add_permission(self, request):
-        """منع إضافة محاولات تسجيل دخول يدوياً"""
-        return False
+    list_display = ['user', 'council_type', 'party', 'constituency', 'is_approved', 'created_at']
+    list_filter = ['council_type', 'party', 'is_approved', 'governorate']
+    search_fields = ['user__email', 'user__first_name', 'user__last_name', 'electoral_number']
+    ordering = ['-created_at']
+
+
+@admin.register(CurrentMemberProfile)
+class CurrentMemberProfileAdmin(admin.ModelAdmin):
+    """إدارة ملفات الأعضاء الحاليين"""
     
-    def has_change_permission(self, request, obj=None):
-        """منع تعديل محاولات تسجيل الدخول"""
-        return False
+    list_display = ['user', 'council_type', 'party', 'constituency', 'term_number', 'created_at']
+    list_filter = ['council_type', 'party', 'term_number', 'governorate']
+    search_fields = ['user__email', 'user__first_name', 'user__last_name']
+    ordering = ['-created_at']

@@ -19,8 +19,7 @@ urlpatterns = [
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     
     # API Endpoints
-    path('api/auth/', include('apps.authentication.urls')),
-    path('api/users/', include('apps.users.urls')),
+    path('api/v1/', include('users.urls')),
 ]
 
 # Serve media files in development
