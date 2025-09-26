@@ -2,3 +2,7 @@ INFO 2025-09-25 03:28:36,323 autoreload 21810 139704431264384 Watching for file 
 INFO 2025-09-25 03:29:13,060 autoreload 21810 139704431264384 /home/ubuntu/naebak-auth-service/config/settings.py changed, reloading.
 INFO 2025-09-25 03:29:13,591 autoreload 21838 140698614690432 Watching for file changes with StatReloader
 INFO 2025-09-25 03:29:20,843 autoreload 22024 139836344627840 Watching for file changes with StatReloader
+INFO 2025-09-26 12:41:27,048 autoreload 12550 140124959322752 Watching for file changes with StatReloader
+INFO 2025-09-26 12:41:34,318 basehttp 12550 140124865336896 "GET /health HTTP/1.1" 301 0
+INFO 2025-09-26 12:41:34,369 basehttp 12550 140124865336896 code 400, message Bad request version ('\x00\x04\x03\x00\x01\x02\x00')
+ERROR 2025-09-26 12:41:34,370 basehttp 12550 140124865336896 You're accessing the development server over HTTPS, but it only supports HTTP.

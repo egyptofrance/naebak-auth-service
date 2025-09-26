@@ -145,7 +145,8 @@ def register_user(request):
     responses={200: UserLoginSerializer}
 )
 @api_view(['POST'])
-@permission_classes([AllowAdef login_user(request):
+@permission_classes([AllowAny])
+def login_user(request):
     """
     تسجيل دخول المستخدم - User authentication and login
     
@@ -177,7 +178,8 @@ def register_user(request):
         - 400: بيانات غير صحيحة
         - 401: بيانات مصادقة خاطئة أو حساب غير مفعل
         - 500: خطأ في الخادم
-    """    try:
+    """
+    try:
         serializer = UserLoginSerializer(data=request.data)
         
         if serializer.is_valid():
@@ -287,7 +289,8 @@ def logout_user(request):
 )
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
-def get_user_profile(request):   """
+def get_user_profile(request):
+    """
     الحصول على ملف المستخدم الشخصي
     Get user profile
     """
