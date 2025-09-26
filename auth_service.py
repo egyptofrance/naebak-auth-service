@@ -57,8 +57,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
-    first_name = db.Column(db.String(50), nullable=False)
-    last_name = db.Column(db.String(50), nullable=False)
+    full_name = db.Column(db.String(100), nullable=False)
     phone_number = db.Column(db.String(20), nullable=True)
     
     # نوع المستخدم
@@ -85,15 +84,14 @@ class User(db.Model):
     def __repr__(self):
         return f'<User {self.email}>'
     
-    def get_full_name(self):
-        return f"{self.first_name} {self.last_name}"
+    def __str__(self):
+        return self.full_name
     
     def to_dict(self):
         return {
             'id': self.id,
             'email': self.email,
-            'first_name': self.first_name,
-            'last_name': self.last_name,
+            'full_name': self.full_name,
             'phone_number': self.phone_number,
             'user_type': self.user_type,
             'verification_status': self.verification_status,
@@ -361,15 +359,14 @@ def register():
             return jsonify({'error': 'لا توجد بيانات'}), 400
         
         # التحقق من البيانات المطلوبة
-        required_fields = ['email', 'password', 'first_name', 'last_name']
+        required_fields = ['email', 'password', 'full_name']
         for field in required_fields:
             if not data.get(field):
                 return jsonify({'error': f'{field} مطلوب'}), 400
         
         email = data['email'].lower().strip()
         password = data['password']
-        first_name = data['first_name'].strip()
-        last_name = data['last_name'].strip()
+        full_name = data['full_name'].strip()
         user_type = data.get('user_type', 'citizen')
         phone_number = data.get('phone_number', '').strip()
         
@@ -392,8 +389,7 @@ def register():
         user = User(
             email=email,
             password_hash=generate_password_hash(password),
-            first_name=first_name,
-            last_name=last_name,
+            full_name=full_name,
             phone_number=phone_number if phone_number else None,
             user_type=user_type
         )
@@ -516,10 +512,8 @@ def update_profile():
             return jsonify({'error': 'لا توجد بيانات'}), 400
         
         # تحديث بيانات المستخدم الأساسية
-        if 'first_name' in data:
-            user.first_name = data['first_name'].strip()
-        if 'last_name' in data:
-            user.last_name = data['last_name'].strip()
+        if 'full_name' in data:
+            user.full_name = data['full_name'].strip()
         if 'phone_number' in data:
             user.phone_number = data['phone_number'].strip() if data['phone_number'] else None
         
