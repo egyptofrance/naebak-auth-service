@@ -1,44 +1,15 @@
-# Django Core
-Django==4.2.7
-djangorestframework==3.14.0
-django-cors-headers==4.3.1
-django-environ==0.11.2
+# Flask Core - خدمة المصادقة المبسطة
+Flask==2.3.3
+Flask-CORS==4.0.0
+Flask-JWT-Extended==4.5.3
+Flask-SQLAlchemy==3.0.5
 
-# Database
+# Database Support (SQLite + PostgreSQL)
+SQLAlchemy==2.0.23
 psycopg2-binary==2.9.7
-redis==5.0.1
-django-redis==5.4.0
 
-# Authentication & Security
-djangorestframework-simplejwt==5.3.0
-django-oauth-toolkit==1.7.1
-cryptography==41.0.7
-bcrypt==4.1.2
-
-# API Documentation
-drf-spectacular==0.26.5
-drf-spectacular-sidecar==2023.10.1
-
-# Validation & Serialization
-marshmallow==3.20.1
-django-phonenumber-field==7.2.0
-phonenumbers==8.13.25
-
-# File Handling
-Pillow==10.1.0
-django-storages==1.14.2
-google-cloud-storage==2.10.0
-
-# Monitoring & Logging
-sentry-sdk==1.38.0
-django-health-check==3.17.0
-
-# Development & Testing
-pytest==7.4.3
-pytest-django==4.7.0
-factory-boy==3.3.0
-coverage==7.3.2
+# Security
+Werkzeug==2.3.7
 
 # Production
 gunicorn==21.2.0
-whitenoise==6.6.0
