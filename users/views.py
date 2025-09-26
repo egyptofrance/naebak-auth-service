@@ -32,9 +32,10 @@ from drf_spectacular.utils import extend_schema
     request=UserRegistrationSerializer,
     responses={201: UserRegistrationSerializer}
 )
-@api_view([\'POST\'])
-@permission_classes([AllowAdef register_user(request):
-    \"\"\"
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def register_user(request):
+    """
     تسجيل مستخدم جديد في النظام - Register a new user in the system
     
     Business Logic:
@@ -67,7 +68,8 @@ from drf_spectacular.utils import extend_schema
         - 201: تم إنشاء المستخدم بنجاح
         - 400: بيانات غير صحيحة أو ناقصة
         - 500: خطأ في الخادم
-    \"\"\"  try:
+    """
+    try:
         with transaction.atomic():
             serializer = UserRegistrationSerializer(data=request.data)
             
@@ -144,7 +146,7 @@ from drf_spectacular.utils import extend_schema
 )
 @api_view(['POST'])
 @permission_classes([AllowAdef login_user(request):
-    \"\"\"
+    """
     تسجيل دخول المستخدم - User authentication and login
     
     Business Logic:
@@ -175,7 +177,7 @@ from drf_spectacular.utils import extend_schema
         - 400: بيانات غير صحيحة
         - 401: بيانات مصادقة خاطئة أو حساب غير مفعل
         - 500: خطأ في الخادم
-    \"\"\"    try:
+    """    try:
         serializer = UserLoginSerializer(data=request.data)
         
         if serializer.is_valid():
@@ -283,7 +285,7 @@ def logout_user(request):
     request=None,
     responses={200: UserProfileSerializer}
 )
-@api_view([\"GET\"])
+@api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def get_user_profile(request):   """
     الحصول على ملف المستخدم الشخصي
