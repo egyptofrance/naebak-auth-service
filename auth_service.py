@@ -751,4 +751,53 @@ if __name__ == '__main__':
     logger.info("✅ المحافظات: 27 محافظة مصرية")
     logger.info("=" * 50)
     
+    # إنشاء قاعدة البيانات والبيانات الأولية
+    with app.app_context():
+        # إنشاء الجداول
+        db.create_all()
+        
+        # التحقق من وجود البيانات الأولية
+        if Governorate.query.count() == 0:
+            logger.info("🔄 إضافة البيانات الأولية...")
+            
+            # إضافة جميع المحافظات المصرية
+            governorates = [
+                ('القاهرة', 'Cairo', 'CAI'),
+                ('الجيزة', 'Giza', 'GIZ'),
+                ('الإسكندرية', 'Alexandria', 'ALX'),
+                ('الدقهلية', 'Dakahlia', 'DK'),
+                ('البحر الأحمر', 'Red Sea', 'BA'),
+                ('البحيرة', 'Beheira', 'BH'),
+                ('الفيوم', 'Fayoum', 'FYM'),
+                ('الغربية', 'Gharbia', 'GH'),
+                ('الإسماعيلية', 'Ismailia', 'IS'),
+                ('المنوفية', 'Monufia', 'MN'),
+                ('المنيا', 'Minya', 'MNY'),
+                ('القليوبية', 'Qalyubia', 'KB'),
+                ('الوادي الجديد', 'New Valley', 'WAD'),
+                ('السويس', 'Suez', 'SUZ'),
+                ('أسوان', 'Aswan', 'ASN'),
+                ('أسيوط', 'Asyut', 'AST'),
+                ('بني سويف', 'Beni Suef', 'BNS'),
+                ('بورسعيد', 'Port Said', 'PTS'),
+                ('دمياط', 'Damietta', 'DT'),
+                ('الشرقية', 'Sharqia', 'SH'),
+                ('جنوب سيناء', 'South Sinai', 'JS'),
+                ('كفر الشيخ', 'Kafr El Sheikh', 'KFS'),
+                ('مطروح', 'Matrouh', 'MT'),
+                ('الأقصر', 'Luxor', 'LXR'),
+                ('قنا', 'Qena', 'QNA'),
+                ('شمال سيناء', 'North Sinai', 'SIN'),
+                ('سوهاج', 'Sohag', 'SHG')
+            ]
+            
+            for gov_name, gov_name_en, gov_code in governorates:
+                gov = Governorate(name=gov_name, name_en=gov_name_en, code=gov_code)
+                db.session.add(gov)
+            
+            db.session.commit()
+            logger.info(f"✅ تم إضافة {len(governorates)} محافظة")
+        else:
+            logger.info(f"✅ البيانات الأولية موجودة ({Governorate.query.count()} محافظة)")
+    
     app.run(host='0.0.0.0', port=8001, debug=True)

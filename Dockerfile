@@ -1,5 +1,5 @@
-# Multi-stage build for security and efficiency
-FROM python:3.11-slim as builder
+# Dockerfile for Naebak Auth Service (Flask)
+FROM python:3.11-slim
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -9,53 +9,36 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
-    build-essential \
-    libpq-dev \
+    gcc \
+    curl \
     && rm -rf /var/lib/apt/lists/*
-
-# Create virtual environment
-RUN python -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
-
-# Copy requirements and install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Production stage
-FROM python:3.11-slim as production
-
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PATH="/opt/venv/bin:$PATH"
-
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y \
-    libpq5 \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
 
 # Create non-root user for security
 RUN groupadd -r appuser && useradd -r -g appuser appuser
 
-# Copy virtual environment from builder stage
-COPY --from=builder /opt/venv /opt/venv
-
 # Set working directory
 WORKDIR /app
 
+# Copy requirements and install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install gunicorn
+
 # Copy application code
 COPY --chown=appuser:appuser . .
+
+# Create instance directory for SQLite
+RUN mkdir -p instance && chown appuser:appuser instance
 
 # Switch to non-root user
 USER appuser
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD python manage.py check --deploy || exit 1
+    CMD curl -f http://localhost:8001/health || exit 1
 
 # Expose port
-EXPOSE 8000
+EXPOSE 8001
 
 # Run the application
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "4", "--timeout", "120", "config.wsgi:application"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8001", "--workers", "2", "--timeout", "120", "auth_service:app"]
