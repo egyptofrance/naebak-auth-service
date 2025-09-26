@@ -14,8 +14,33 @@ from .managers import UserManager
 
 class User(AbstractUser):
     """
-    نموذج المستخدم المخصص لتطبيق نائبك
-    يدعم أنواع مختلفة من المستخدمين مع مرونة في المصادقة
+    نموذج المستخدم المخصص لتطبيق نائبك - Custom User Model for Naebak Platform
+    
+    يدعم أنواع مختلفة من المستخدمين مع مرونة في المصادقة والتحقق من الهوية.
+    يستخدم البريد الإلكتروني كمعرف رئيسي بدلاً من اسم المستخدم لتبسيط عملية التسجيل.
+    
+    Attributes:
+        email (EmailField): البريد الإلكتروني - المعرف الرئيسي للمستخدم
+        first_name (CharField): الاسم الأول
+        last_name (CharField): الاسم الأخير  
+        phone_number (PhoneNumberField): رقم الهاتف (اختياري)
+        user_type (CharField): نوع المستخدم (مواطن، مرشح، عضو حالي)
+        verification_status (CharField): حالة التحقق من الهوية
+        national_id (CharField): الرقم القومي المصري (14 رقم)
+        governorate (ForeignKey): المحافظة التي ينتمي إليها المستخدم
+        last_active (DateTimeField): آخر نشاط للمستخدم
+        
+    Business Logic:
+        - يتم التحقق من صحة الرقم القومي المصري (14 رقم)
+        - المرشحون والأعضاء الحاليون يحتاجون تحقق إضافي من الهوية
+        - المواطنون العاديون يمكنهم التسجيل مباشرة
+        - نظام الصلاحيات يعتمد على نوع المستخدم وحالة التحقق
+        
+    Methods:
+        get_full_name(): إرجاع الاسم الكامل
+        get_profile(): الحصول على الملف الشخصي حسب نوع المستخدم
+        can_vote(): التحقق من أهلية التصويت
+        requires_verification(): التحقق من الحاجة للتحقق الإضافي
     """
     
     class UserType(models.TextChoices):
@@ -69,17 +94,105 @@ class User(AbstractUser):
         db_table = 'auth_user'
     
     def __str__(self):
+        """
+        إرجاع تمثيل نصي للمستخدم - String representation of the user
+        
+        Returns:
+            str: الاسم الكامل مع البريد الإلكتروني في الأقواس
+        """
         return f"{self.first_name} {self.last_name} ({self.email})"
     
     def get_full_name(self):
+        """
+        الحصول على الاسم الكامل للمستخدم - Get user's full name
+        
+        Returns:
+            str: الاسم الأول + الاسم الأخير
+        """
         return f"{self.first_name} {self.last_name}"
     
     def get_display_name(self):
+        """
+        الحصول على الاسم المعروض للمستخدم - Get user's display name
+        
+        Returns:
+            str: الاسم الكامل (نفس get_full_name حالياً)
+        """
         return self.get_full_name()
+    
+    def can_vote(self):
+        """
+        التحقق من أهلية المستخدم للتصويت - Check if user is eligible to vote
+        
+        Business Logic:
+            - يجب أن يكون المستخدم مواطناً (CITIZEN)
+            - يجب أن يكون محقق الهوية (VERIFIED)
+            - يجب أن يكون الحساب نشطاً (is_active)
+            
+        Returns:
+            bool: True إذا كان مؤهلاً للتصويت، False إذا لم يكن
+        """
+        return (
+            self.user_type == self.UserType.CITIZEN and
+            self.verification_status == self.VerificationStatus.VERIFIED and
+            self.is_active
+        )
+    
+    def requires_verification(self):
+        """
+        التحقق من الحاجة للتحقق الإضافي من الهوية - Check if user requires additional verification
+        
+        Business Logic:
+            - المرشحون والأعضاء الحاليون يحتاجون تحقق إضافي
+            - المواطنون العاديون لا يحتاجون تحقق إضافي (حالياً)
+            
+        Returns:
+            bool: True إذا كان يحتاج تحقق إضافي، False إذا لم يكن
+        """
+        return self.user_type in [
+            self.UserType.PARLIAMENT_CANDIDATE,
+            self.UserType.SENATE_CANDIDATE,
+            self.UserType.PARLIAMENT_MEMBER,
+            self.UserType.SENATE_MEMBER
+        ]
+    
+    def get_profile(self):
+        """
+        الحصول على الملف الشخصي حسب نوع المستخدم - Get user profile based on user type
+        
+        Business Logic:
+            - كل نوع مستخدم له ملف شخصي مختلف
+            - يتم إرجاع الملف المناسب أو None إذا لم يوجد
+            
+        Returns:
+            Model instance or None: الملف الشخصي المناسب أو None
+        """
+        if self.user_type == self.UserType.CITIZEN:
+            return getattr(self, 'citizen_profile', None)
+        elif self.user_type in [self.UserType.PARLIAMENT_CANDIDATE, self.UserType.SENATE_CANDIDATE]:
+            return getattr(self, 'candidate_profile', None)
+        elif self.user_type in [self.UserType.PARLIAMENT_MEMBER, self.UserType.SENATE_MEMBER]:
+            return getattr(self, 'member_profile', None)
+        return None
 
 
 class Governorate(models.Model):
-    """نموذج المحافظات المصرية (27 محافظة)"""
+    """
+    نموذج المحافظات المصرية - Egyptian Governorates Model
+    
+    يحتوي على جميع المحافظات المصرية الـ 27 مع أكوادها الرسمية.
+    يستخدم لربط المستخدمين بمحافظاتهم لأغراض التصويت والتمثيل السياسي.
+    
+    Attributes:
+        name (CharField): اسم المحافظة بالعربية
+        name_en (CharField): اسم المحافظة بالإنجليزية  
+        code (CharField): كود المحافظة الرسمي (3 أحرف)
+        
+    Business Logic:
+        - كل مستخدم يجب أن ينتمي لمحافظة واحدة فقط
+        - المحافظة تحدد الدائرة الانتخابية للمستخدم
+        - تستخدم في تصفية المرشحين والأعضاء حسب المنطقة الجغرافية
+    """
     
     name = models.CharField(_('اسم المحافظة'), max_length=50, unique=True)
     name_en = models.CharField(_('الاسم بالإنجليزية'), max_length=50)
@@ -95,7 +208,22 @@ class Governorate(models.Model):
 
 
 class Party(models.Model):
-    """نموذج الأحزاب السياسية المصرية"""
+    """
+    نموذج الأحزاب السياسية المصرية - Egyptian Political Parties Model
+    
+    يحتوي على جميع الأحزاب السياسية المعتمدة في مصر.
+    يستخدم لربط المرشحين والأعضاء الحاليين بأحزابهم السياسية.
+    
+    Attributes:
+        name (CharField): اسم الحزب بالعربية
+        name_en (CharField): اسم الحزب بالإنجليزية
+        abbreviation (CharField): اختصار اسم الحزب
+        
+    Business Logic:
+        - المرشحون والأعضاء يمكن أن ينتموا لحزب أو يكونوا مستقلين
+        - الحزب يؤثر على التصنيف والتجميع في النتائج
+        - يستخدم في إحصائيات التمثيل الحزبي
+    """
     
     name = models.CharField(_('اسم الحزب'), max_length=100, unique=True)
     name_en = models.CharField(_('الاسم بالإنجليزية'), max_length=100)
@@ -111,7 +239,32 @@ class Party(models.Model):
 
 
 class CitizenProfile(models.Model):
-    """نموذج بيانات المواطن الكامل"""
+    """
+    نموذج بيانات المواطن الكامل - Complete Citizen Profile Model
+    
+    يحتوي على جميع البيانات الشخصية والديموغرافية للمواطن المصري.
+    يستخدم لأغراض التحقق من الهوية والتصويت والتواصل مع الممثلين.
+    
+    Attributes:
+        user (OneToOneField): ربط بالمستخدم الأساسي
+        governorate (ForeignKey): المحافظة (مطلوب للتصويت)
+        city (CharField): المدينة
+        district (CharField): الحي (اختياري)
+        street_address (CharField): العنوان التفصيلي
+        national_id (CharField): الرقم القومي المصري (14 رقم، فريد)
+        gender (CharField): النوع (ذكر/أنثى)
+        birth_date (DateField): تاريخ الميلاد
+        marital_status (CharField): الحالة الاجتماعية
+        occupation (CharField): المهنة
+        education_level (CharField): المستوى التعليمي
+        
+    Business Logic:
+        - الرقم القومي يجب أن يكون 14 رقم وفريد في النظام
+        - المحافظة تحدد الدائرة الانتخابية للمواطن
+        - تاريخ الميلاد يستخدم للتحقق من أهلية التصويت (18+ سنة)
+        - البيانات الشخصية تستخدم في التحقق من الهوية
+        - رقم الواتساب يستخدم للتواصل السريع والإشعارات
+    """
     
     class Gender(models.TextChoices):
         MALE = 'male', _('ذكر')

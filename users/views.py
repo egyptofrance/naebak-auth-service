@@ -24,14 +24,50 @@ from .serializers import (
 )
 
 
-@api_view(['POST'])
-@permission_classes([AllowAny])
-def register_user(request):
-    """
-    تسجيل مستخدم جديد في النظام
-    Register a new user in the system
-    """
-    try:
+from drf_spectacular.utils import extend_schema
+
+@extend_schema(
+    summary="Register a new user",
+    description="Create a new user account with a unique username and email.",
+    request=UserRegistrationSerializer,
+    responses={201: UserRegistrationSerializer}
+)
+@api_view([\'POST\'])
+@permission_classes([AllowAdef register_user(request):
+    \"\"\"
+    تسجيل مستخدم جديد في النظام - Register a new user in the system
+    
+    Business Logic:
+        1. التحقق من صحة البيانات الأساسية (email, password, names)
+        2. إنشاء المستخدم الأساسي مع نوع المستخدم المحدد
+        3. إنشاء الملف الشخصي المناسب حسب نوع المستخدم:
+           - CitizenProfile للمواطنين العاديين
+           - CandidateProfile للمرشحين (برلمان/شيوخ)
+           - CurrentMemberProfile للأعضاء الحاليين
+        4. إنشاء JWT tokens للمصادقة الفورية
+        5. إرجاع بيانات المستخدم مع الـ tokens
+    
+    Security Considerations:
+        - كلمة المرور يتم تشفيرها تلقائياً بواسطة Django
+        - البريد الإلكتروني يجب أن يكون فريد في النظام
+        - الرقم القومي يجب أن يكون فريد (للمواطنين)
+        - استخدام database transaction لضمان تكامل البيانات
+    
+    Args:
+        request (HttpRequest): طلب HTTP يحتوي على بيانات التسجيل
+        
+    Returns:
+        Response: JSON response يحتوي على:
+            - success (bool): حالة نجاح العملية
+            - message (str): رسالة توضيحية
+            - data (dict): بيانات المستخدم والـ tokens (في حالة النجاح)
+            - errors (dict): أخطاء التحقق (في حالة الفشل)
+    
+    HTTP Status Codes:
+        - 201: تم إنشاء المستخدم بنجاح
+        - 400: بيانات غير صحيحة أو ناقصة
+        - 500: خطأ في الخادم
+    \"\"\"  try:
         with transaction.atomic():
             serializer = UserRegistrationSerializer(data=request.data)
             
@@ -100,14 +136,46 @@ def register_user(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@extend_schema(
+    summary="Login a user",
+    description="Authenticate a user and return a JWT token.",
+    request=UserLoginSerializer,
+    responses={200: UserLoginSerializer}
+)
 @api_view(['POST'])
-@permission_classes([AllowAny])
-def login_user(request):
-    """
-    تسجيل دخول المستخدم
-    User login
-    """
-    try:
+@permission_classes([AllowAdef login_user(request):
+    \"\"\"
+    تسجيل دخول المستخدم - User authentication and login
+    
+    Business Logic:
+        1. التحقق من صحة بيانات تسجيل الدخول (email, password)
+        2. محاولة مصادقة المستخدم باستخدام Django authentication
+        3. التحقق من أن الحساب نشط (is_active=True)
+        4. تحديث آخر نشاط للمستخدم (last_active)
+        5. إنشاء JWT tokens جديدة (access + refresh)
+        6. إرجاع بيانات المستخدم مع الـ tokens
+    
+    Security Considerations:
+        - كلمة المرور يتم التحقق منها بشكل آمن (hashed comparison)
+        - JWT tokens لها مدة انتهاء صلاحية محددة
+        - تسجيل محاولات تسجيل الدخول الفاشلة (للمراقبة)
+        - التحقق من حالة تفعيل الحساب قبل السماح بالدخول
+    
+    Args:
+        request (HttpRequest): طلب HTTP يحتوي على email و password
+        
+    Returns:
+        Response: JSON response يحتوي على:
+            - success (bool): حالة نجاح العملية
+            - message (str): رسالة توضيحية
+            - data (dict): بيانات المستخدم والـ tokens (في حالة النجاح)
+    
+    HTTP Status Codes:
+        - 200: تم تسجيل الدخول بنجاح
+        - 400: بيانات غير صحيحة
+        - 401: بيانات مصادقة خاطئة أو حساب غير مفعل
+        - 500: خطأ في الخادم
+    \"\"\"    try:
         serializer = UserLoginSerializer(data=request.data)
         
         if serializer.is_valid():
@@ -171,6 +239,12 @@ def login_user(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@extend_schema(
+    summary="Logout a user",
+    description="Blacklist the user's refresh token to log them out.",
+    request=None,
+    responses={200: None}
+)
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def logout_user(request):
@@ -203,10 +277,15 @@ def logout_user(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-@api_view(['GET'])
+@extend_schema(
+    summary="Get user profile",
+    description="Get the profile of the currently authenticated user.",
+    request=None,
+    responses={200: UserProfileSerializer}
+)
+@api_view([\"GET\"])
 @permission_classes([IsAuthenticated])
-def get_user_profile(request):
-    """
+def get_user_profile(request):   """
     الحصول على ملف المستخدم الشخصي
     Get user profile
     """
